@@ -24,7 +24,7 @@ FOR row IN
      'SELECT op_id, from, to, amount, timestamp, memo
       FROM hafsql.op_transfer
       WHERE memo LIKE "!tip%"
-      ORDER BY timestamp DESC',
+      ORDER BY op_id DESC',
     ))
       AS t1(op_id INT, from VARCHAR, to VARCHAR, amount FLOAT, timestamp TIMESTAMP, memo TEXT)
   
