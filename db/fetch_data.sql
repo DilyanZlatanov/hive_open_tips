@@ -1,18 +1,18 @@
--- Functions for gaining data from a HafSQL database
+-- Functions for fetching data from a HafSQL database
 
-CREATE OR REPLACE FUNCTION gain_tips()
+CREATE OR REPLACE FUNCTION fetch_tips()
 RETURNS INT
 AS $$
 DECLARE
-  gained_to BIGINT;
+ -- dynamic_trx_id INT;
   row RECORD;
 BEGIN
 
--- Check which hafsql id we have gained up to
-SELECT tips.hafsql_id INTO gained_to FROM tips ORDER BY hafsql_id DESC LIMIT 1;
+-- Check which hafsql id we have fetched up to
+--SELECT hive_open_tips.trx_id INTO dynamic_trx_id FROM hive_open_tips;
 
 -- Get new tips and loop over them
-RAISE NOTICE 'Gaining tips data...';
+RAISE NOTICE 'fetching tips data...';
 
 -- We use dblink to connect to a remote db. See https://www.postgresql.org/docs/current/contrib-dblink-function.html
 -- We use format() with literals to dynamically build the query. See https://www.postgresql.org/docs/current/plpgsql-statements.html#PLPGSQL-QUOTE-LITERAL-EXAMPLE
@@ -21,15 +21,17 @@ FOR row IN
   SELECT *
   FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
     FORMAT(
-     'SELECT op_id, from, to, amount, timestamp, memo
+     'SELECT op_id, ''from'', ''to'', amount, timestamp, memo
       FROM hafsql.op_transfer
-      WHERE memo LIKE "!tip%"
-      ORDER BY op_id DESC',
+      WHERE memo LIKE %L
+      ORDER BY timestamp DESC
+      LIMIT 10',
+      '!tip%'
     ))
-      AS t1(op_id INT, from VARCHAR, to VARCHAR, amount FLOAT, timestamp TIMESTAMP, memo TEXT)
+      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, memo TEXT)
   
   LOOP
-  -- Put row results into our db 
+  -- Put row results into our db  
   INSERT INTO hive_open_tips(
     trx_id,
     sender,
@@ -37,15 +39,15 @@ FOR row IN
     amount,
     token,
     timestamp,
-    platform,
+    --platform,
     permalink
   )
   VALUES (
     row.op_id,
-    row.from,
-    row.to,
-    row.amount::jsonb->>'amount',
-    row.amount::jsonb->>'nai',
+    row."from",
+    row."to",
+    row.amount::jsonb->>'amount'::TEXT,
+    row.amount::jsonb->>'nai'::TEXT,
     row.timestamp,
     --row.platform,
     row.memo
