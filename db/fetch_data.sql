@@ -39,17 +39,17 @@ FOR row IN
     amount,
     token,
     timestamp,
-    --platform,
+    platform,
     permalink
   )
   VALUES (
     row.op_id,
     row."from",
     row."to",
-    row.amount::jsonb->>'amount'::TEXT,
+    CAST(row.amount::jsonb->>'amount' AS FLOAT),
     row.amount::jsonb->>'nai'::TEXT,
     row.timestamp,
-    --row.platform,
+    (SELECT SUBSTRING(row.memo FROM POSITION('Tip sent through ' IN row.memo))FROM hafsql.op_transfer WHERE hafsql.op_transfer.memo LIKE '%Tip sent through%'),
     row.memo
   );
   END LOOP;

@@ -6,7 +6,7 @@ CREATE TABLE hive_open_tips (
    trx_id BIGINT PRIMARY KEY,
    sender VARCHAR(16) NOT NULL,
    receiver VARCHAR(16) NOT NULL,
-   amount TEXT NOT NULL,
+   amount FLOAT NOT NULL,
    token VARCHAR(20) NOT NULL,
    timestamp TIMESTAMP NOT NULL,
    platform VARCHAR(50),
