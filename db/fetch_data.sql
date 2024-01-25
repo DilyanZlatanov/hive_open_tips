@@ -8,7 +8,7 @@ DECLARE
  row RECORD;
 BEGIN
 
--- Check which hafsql id we have fetched up to
+-- Check the last trx_id we have added into hive_open_tips
 SELECT MAX(hive_open_tips.trx_id) INTO dynamic_trx_id FROM hive_open_tips;
 
 -- Get new tips and loop over them
@@ -21,7 +21,7 @@ FOR row IN
   SELECT *
   FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
     FORMAT(
-     'SELECT op_id, ''from'', ''to'', amount, timestamp, memo, SUBSTRING(memo from ''app:(\w*)'')
+     'SELECT op_id, "from", "to", amount, timestamp, memo, SUBSTRING(memo from ''app:(\w*)'')
       FROM hafsql.op_transfer
       WHERE memo LIKE %L
       AND CASE
