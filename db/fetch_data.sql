@@ -50,7 +50,11 @@ FOR row IN
     row."from",
     row."to",
     CAST(row.amount::jsonb->>'amount' AS FLOAT),
-    row.amount::jsonb->>'nai'::TEXT,
+    CASE
+      WHEN row.amount::jsonb->>'nai' = '@@000000021' THEN 'HIVE'::TEXT
+      WHEN row.amount::jsonb->>'nai' = '@@000000013' THEN 'HBD'::TEXT
+      ELSE row.amount::jsonb->>'nai'::TEXT
+    END,
     row.timestamp,
     row.platform,
     row.memo
