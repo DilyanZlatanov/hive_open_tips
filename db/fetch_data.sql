@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION fetch_tips()
 RETURNS INT
 AS $$
 DECLARE
- dynamic_trx_id INT;
+ dynamic_trx_id BIGINT;
  row RECORD;
 BEGIN
 
