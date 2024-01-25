@@ -19,7 +19,7 @@ CREATE INDEX idx_memo ON hive_open_tips USING HASH (memo);
 
 -- Create functions for fetching the app data and for providing data API
 \i /usr/src/app/db/fetch_data.sql
-\i /usr/src/app/api/provide_data_api.sql
+\i /usr/src/app/api/endpoints.sql
 
 -- Add dblink extension to our app's db
 DROP EXTENSION IF EXISTS dblink;

@@ -4,12 +4,12 @@ CREATE OR REPLACE FUNCTION fetch_tips()
 RETURNS INT
 AS $$
 DECLARE
- -- dynamic_trx_id INT;
-  row RECORD;
+ dynamic_trx_id INT;
+ row RECORD;
 BEGIN
 
 -- Check which hafsql id we have fetched up to
---SELECT hive_open_tips.trx_id INTO dynamic_trx_id FROM hive_open_tips;
+SELECT MAX(hive_open_tips.trx_id) INTO dynamic_trx_id FROM hive_open_tips;
 
 -- Get new tips and loop over them
 RAISE NOTICE 'fetching tips data...';
@@ -21,14 +21,17 @@ FOR row IN
   SELECT *
   FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
     FORMAT(
-     'SELECT op_id, ''from'', ''to'', amount, timestamp, memo, substring(memo from ''app:(\w*)'')
+     'SELECT op_id, ''from'', ''to'', amount, timestamp, memo, SUBSTRING(memo from ''app:(\w*)'')
       FROM hafsql.op_transfer
       WHERE memo LIKE %L
-      ORDER BY timestamp DESC
-      LIMIT 10',
-      '!tip%'
+      AND CASE
+        WHEN %L IS NULL THEN TRUE
+        ELSE op_id > %L
+      END
+      ORDER BY timestamp ASC',
+      '!tip%', dynamic_trx_id, dynamic_trx_id
     ))
-      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, memo TEXT, app TEXT)
+      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, memo TEXT, platform TEXT)
   
   LOOP
   -- Put row results into our db  
@@ -49,7 +52,7 @@ FOR row IN
     CAST(row.amount::jsonb->>'amount' AS FLOAT),
     row.amount::jsonb->>'nai'::TEXT,
     row.timestamp,
-    row.app,
+    row.platform,
     row.memo
   );
   END LOOP;
