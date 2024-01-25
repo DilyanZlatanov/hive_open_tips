@@ -21,14 +21,14 @@ FOR row IN
   SELECT *
   FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
     FORMAT(
-     'SELECT op_id, ''from'', ''to'', amount, timestamp, memo
+     'SELECT op_id, ''from'', ''to'', amount, timestamp, memo, substring(memo from ''app:(\w*)'')
       FROM hafsql.op_transfer
       WHERE memo LIKE %L
       ORDER BY timestamp DESC
       LIMIT 10',
       '!tip%'
     ))
-      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, memo TEXT)
+      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, memo TEXT, app TEXT)
   
   LOOP
   -- Put row results into our db  
@@ -40,7 +40,7 @@ FOR row IN
     token,
     timestamp,
     platform,
-    permalink
+    memo
   )
   VALUES (
     row.op_id,
@@ -49,7 +49,7 @@ FOR row IN
     CAST(row.amount::jsonb->>'amount' AS FLOAT),
     row.amount::jsonb->>'nai'::TEXT,
     row.timestamp,
-    (SELECT SUBSTRING(row.memo FROM POSITION('Tip sent through ' IN row.memo))FROM hafsql.op_transfer WHERE hafsql.op_transfer.memo LIKE '%Tip sent through%'),
+    row.app,
     row.memo
   );
   END LOOP;

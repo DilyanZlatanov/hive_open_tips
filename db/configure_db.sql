@@ -10,12 +10,12 @@ CREATE TABLE hive_open_tips (
    token VARCHAR(20) NOT NULL,
    timestamp TIMESTAMP NOT NULL,
    platform VARCHAR(50),
-   permalink TEXT
+   memo TEXT
    );
 
 CREATE INDEX idx_sender ON hive_open_tips USING HASH (sender);
 CREATE INDEX idx_receiver ON hive_open_tips USING HASH (receiver);
-CREATE INDEX idx_permalink ON hive_open_tips USING HASH (permalink);
+CREATE INDEX idx_memo ON hive_open_tips USING HASH (memo);
 
 -- Create functions for fetching the app data and for providing data API
 \i /usr/src/app/db/fetch_data.sql
