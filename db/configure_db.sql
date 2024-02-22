@@ -10,6 +10,10 @@ CREATE TABLE hive_open_tips (
    token VARCHAR(20) NOT NULL,
    timestamp TIMESTAMP NOT NULL,
    platform VARCHAR(50),
+   author VARCHAR(16),
+   permlink TEXT,
+   parent_author VARCHAR(16),
+   parent_permlink TEXT,
    memo TEXT
    );
 

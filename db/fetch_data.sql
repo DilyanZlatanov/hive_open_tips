@@ -21,19 +21,38 @@ FOR row IN
   SELECT *
   FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
     FORMAT(
-     'SELECT op_id, "from", "to", amount, timestamp, memo, SUBSTRING(memo from ''app:(\w*)'')
-      FROM hafsql.op_transfer
-      WHERE memo LIKE %L
-      AND CASE
-        WHEN %L IS NULL THEN TRUE
-        ELSE op_id > %L
-      END
-      ORDER BY timestamp ASC',
+     'SELECT
+       t.op_id, 
+       t."from", 
+       t."to",
+       t.amount,
+       t.timestamp,
+       SUBSTRING(t.memo from ''app:(\w*)'') AS platform,
+       SUBSTRING(t.memo from ''!tip @(.*)/'') AS author,
+       SUBSTRING(t.memo from ''!tip @.*/([a-z0-9-]*) '') AS permlink,
+       c.parent_author,
+       c.parent_permlink,
+       t.memo
+      FROM hafsql.op_transfer t
+      JOIN hafsql.op_comment c
+       ON c.permlink = permlink AND c.author = author
+       WHERE t.memo LIKE %L
+       AND t.op_id >= 2018988205
+       AND CASE
+         WHEN %L IS NULL THEN TRUE
+         ELSE t.op_id > %L
+       END
+      ORDER BY t.op_id ASC
+      LIMIT 10',
       '!tip%', dynamic_trx_id, dynamic_trx_id
-    ))
-      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, memo TEXT, platform TEXT)
+      
+    )) 
+      AS t1(op_id BIGINT, "from" VARCHAR, "to" VARCHAR, amount TEXT, timestamp TIMESTAMP, platform TEXT, author VARCHAR, permlink TEXT, parent_author VARCHAR, parent_permlink TEXT, memo TEXT)
   
   LOOP
+  -- Check if row.op_id already exists in hive_open_tips.trx_id
+  PERFORM 1 FROM hive_open_tips WHERE trx_id = row.op_id;
+  IF NOT FOUND THEN
   -- Put row results into our db  
   INSERT INTO hive_open_tips(
     trx_id,
@@ -43,6 +62,10 @@ FOR row IN
     token,
     timestamp,
     platform,
+    author,
+    permlink,
+    parent_author,
+    parent_permlink,
     memo
   )
   VALUES (
@@ -57,8 +80,13 @@ FOR row IN
     END,
     row.timestamp,
     row.platform,
+    row.author,
+    row.permlink,
+    row.parent_author,
+    row.parent_permlink,
     row.memo
   );
+  END IF;
   END LOOP;
 
 RETURN 1;
