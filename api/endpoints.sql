@@ -35,12 +35,12 @@ END;
 $$
 LANGUAGE plpgsql;
 
-
-CREATE OR REPLACE FUNCTION tips_sum_for_post(post TEXT)
+-- This function provides the sum of tips for a specific Hive post. - трябва да е списък а не сумата
+CREATE OR REPLACE FUNCTION tips_sum_for_post(v_permlink VARCHAR)
 RETURNS TABLE (
    total_tips FLOAT,
    token VARCHAR(20),
-   hive_post VARCHAR(100)
+   hive_post TEXT
 )
 AS $$
 BEGIN
@@ -48,10 +48,37 @@ BEGIN
     SELECT 
       t.SUM(amount),
       t.token,
-      t.memo
+      t.permlink,
+      t.parent_author
     FROM hive_open_tips t
-    WHERE memo = post
-    GROUP BY memo, token;
+    WHERE permlink = v_permlink
+    AND parent_author = ''
+    GROUP BY permlink, token;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+
+-- This function provides the sum of tips for every comment on a specific Hive post. - трябва да е списък на бакшишите към всеки пост
+CREATE OR REPLACE FUNCTION tips_sum_for_post_comments(v_permlink VARCHAR)
+RETURNS TABLE (
+  tips_for_comment FLOAT,
+  token VARCHAR(20),
+  comment TEXT,
+  hive_post TEXT
+)
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+      t.amount,
+      t.token,
+      t.permlink,
+      t.parent_permlink
+    FROM hive_open_tips t 
+    WHERE permlink = v_permlink
+    AND parent_permlink != '';
 END;
 $$
 LANGUAGE plpgsql;

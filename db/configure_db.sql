@@ -3,7 +3,7 @@
 \c hive_open_tips;
 
 CREATE TABLE hive_open_tips (
-   trx_id BIGINT PRIMARY KEY,
+   hafsql_op_id BIGINT PRIMARY KEY,
    sender VARCHAR(16) NOT NULL,
    receiver VARCHAR(16) NOT NULL,
    amount FLOAT NOT NULL,
@@ -12,9 +12,9 @@ CREATE TABLE hive_open_tips (
    platform VARCHAR(50),
    author VARCHAR(16),
    permlink TEXT,
-   parent_author VARCHAR(16),
-   parent_permlink TEXT,
-   memo TEXT
+   memo TEXT,
+   parent_author VARCHAR(50),
+   parent_permlink TEXT
    );
 
 CREATE INDEX idx_sender ON hive_open_tips USING HASH (sender);
