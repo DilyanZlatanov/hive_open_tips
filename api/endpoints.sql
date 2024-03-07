@@ -1,72 +1,47 @@
 -- Functions creating API endpoints
 -- The function name is the endpoint name, accessible under domain.com/rpc/function_name
 
-
--- The following function provides data for every tip-like transfer on the blockchain.
-CREATE OR REPLACE FUNCTION tips()
+-- This function provides a list for tips for a specific Hive post.
+CREATE OR REPLACE FUNCTION tips_list_for_post()
 RETURNS TABLE (
-   trx_id BIGINT,
-   sender VARCHAR(16),
-   receiver VARCHAR(16),
-   amount FLOAT,
+   tip FLOAT,
    token VARCHAR(20),
-   created TIMESTAMP,
-   platform VARCHAR,
-   memo TEXT
-   )
-AS $$
-
-BEGIN
-RETURN QUERY
-
-SELECT 
-  t.trx_id,
-  t.sender, 
-  t.receiver, 
-  t.amount, 
-  t.token,
-  t.timestamp,
-  t.platform,
-  t.memo
-FROM hive_open_tips t
-ORDER BY trx_id ASC;
-      
-END;
-$$
-LANGUAGE plpgsql;
-
--- This function provides the sum of tips for a specific Hive post. - трябва да е списък а не сумата
-CREATE OR REPLACE FUNCTION tips_sum_for_post(v_permlink VARCHAR)
-RETURNS TABLE (
-   total_tips FLOAT,
-   token VARCHAR(20),
-   hive_post TEXT
+   hive_post TEXT,
+   from_sender VARCHAR(16),
+   to_receiver VARCHAR(16)
 )
 AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-      t.SUM(amount),
+      t.amount,
       t.token,
       t.permlink,
-      t.parent_author
+      t.sender,
+      t.receiver
     FROM hive_open_tips t
-    WHERE permlink = v_permlink
-    AND parent_author = ''
-    GROUP BY permlink, token;
+    WHERE t.parent_author = ''
+    GROUP BY
+    t.amount, 
+    t.permlink, 
+    t.token,
+    t.sender,
+    t.receiver;
 END;
 $$
 LANGUAGE plpgsql;
 
 
 
--- This function provides the sum of tips for every comment on a specific Hive post. - трябва да е списък на бакшишите към всеки пост
-CREATE OR REPLACE FUNCTION tips_sum_for_post_comments(v_permlink VARCHAR)
+-- This function provides list for tips for every comment on a specific Hive post.
+CREATE OR REPLACE FUNCTION tips_list_for_post_comments()
 RETURNS TABLE (
-  tips_for_comment FLOAT,
+  tip_for_comment FLOAT,
   token VARCHAR(20),
   comment TEXT,
-  hive_post TEXT
+  parent_post TEXT,
+  from_sender VARCHAR(16),
+  to_receiver VARCHAR(16)
 )
 AS $$
 BEGIN
@@ -75,10 +50,18 @@ BEGIN
       t.amount,
       t.token,
       t.permlink,
-      t.parent_permlink
+      t.parent_permlink,
+      t.sender,
+      t.receiver
     FROM hive_open_tips t 
-    WHERE permlink = v_permlink
-    AND parent_permlink != '';
+    WHERE t.parent_permlink != ''
+    GROUP BY 
+    t.amount, 
+    t.token, 
+    t.permlink,
+    t.parent_permlink,
+    t.sender,
+    t.receiver;
 END;
 $$
 LANGUAGE plpgsql;

@@ -43,8 +43,8 @@ FOR row IN
       ORDER BY t.op_id ASC
       limit 10
 ) tips
-join hafsql.op_comment c ON c.permlink = tips.permlink and c.author = tips.author',
-'app:(\w*)', '!tip @(.*)/', '!tip @.*/([a-z0-9-]*) ', '!tip%', 2018988205, 2018988205
+join hafsql.comments_table c ON c.permlink = tips.permlink and c.author = tips.author',
+'app:(\w*)', '!tip @(.*)/', '!tip @.*/([a-z0-9-]*) ', '!tip%', fetched_to, fetched_to
     )
 
     )
