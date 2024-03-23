@@ -2,7 +2,7 @@
 -- The function name is the endpoint name, accessible under domain.com/rpc/function_name
 
 -- This function provides a list for tips for a specific Hive post.
-CREATE OR REPLACE FUNCTION tips_list_for_post(permlink TEXT)
+CREATE OR REPLACE FUNCTION tips_list_for_post(author VARCHAR, permlink TEXT)
 RETURNS TABLE (
    tip FLOAT,
    token VARCHAR(20),
@@ -21,13 +21,8 @@ BEGIN
       t.receiver
     FROM hive_open_tips t
     WHERE t.parent_author = ''
-    AND t.permlink = $1
-    GROUP BY
-    t.amount, 
-    t.permlink, 
-    t.token,
-    t.sender,
-    t.receiver;
+    AND t.author = $1
+    AND t.permlink = $2;
 END;
 $$
 LANGUAGE plpgsql;
@@ -35,7 +30,7 @@ LANGUAGE plpgsql;
 
 
 -- This function provides list for tips for every comment on a specific Hive post.
-CREATE OR REPLACE FUNCTION tips_list_for_post_comments(permlink TEXT)
+CREATE OR REPLACE FUNCTION tips_list_for_post_comments(author VARCHAR, permlink TEXT)
 RETURNS TABLE (
   tip_for_comment FLOAT,
   token VARCHAR(20),
@@ -56,14 +51,8 @@ BEGIN
       t.receiver
     FROM hive_open_tips t 
     WHERE t.parent_permlink != ''
-    AND t.permlink = $1
-    GROUP BY 
-    t.amount, 
-    t.token, 
-    t.permlink,
-    t.parent_permlink,
-    t.sender,
-    t.receiver;
+    AND t.author = $1
+    AND t.permlink = $2;
 END;
 $$
 LANGUAGE plpgsql;
