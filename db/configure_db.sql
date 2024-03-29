@@ -14,7 +14,8 @@ CREATE TABLE hive_open_tips (
    permlink TEXT,
    memo TEXT,
    parent_author VARCHAR(50),
-   parent_permlink TEXT
+   parent_permlink TEXT,
+   author_permlink TEXT
    );
 
 CREATE INDEX idx_sender ON hive_open_tips USING HASH (sender);

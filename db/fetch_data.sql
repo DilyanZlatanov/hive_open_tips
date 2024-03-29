@@ -77,7 +77,8 @@ join hafsql.comments_table c ON c.permlink = tips.permlink and c.author = tips.a
     permlink,
     memo,
     parent_author,
-    parent_permlink
+    parent_permlink,
+    author_permlink
   )
   VALUES (
     row.op_id,
@@ -95,7 +96,8 @@ join hafsql.comments_table c ON c.permlink = tips.permlink and c.author = tips.a
     row.permlink,
     row.memo,
     row.parent_author,
-    row.parent_permlink
+    row.parent_permlink,
+    CONCAT(row.author,'/',row.permlink)
   );
 END LOOP;
 

@@ -57,3 +57,41 @@ END;
 $$
 LANGUAGE plpgsql;
   
+
+-- This function accepts POST request. You can pass JSONB array as parameter based on author_permlink column from hive_open_tips table.
+CREATE OR REPLACE FUNCTION tips_for_multi_posts_selection(posts JSONB)
+RETURNS TABLE(
+  hafsql_op_id BIGINT,
+  sender VARCHAR(16),
+  receiver VARCHAR(16),
+  amount FLOAT,
+  token VARCHAR(20),
+  tip_timestamp TIMESTAMP,
+  platform VARCHAR(50),
+  author VARCHAR(16),
+  permlink TEXT,
+  memo TEXT,
+  parent_author VARCHAR(50),
+  parent_permlink TEXT
+)
+AS $$
+BEGIN
+  RETURN QUERY 
+  SELECT
+  t.hafsql_op_id,
+  t.sender,
+  t.receiver,
+  t.amount,
+  t.token,
+  t.timestamp,
+  t.platform,
+  t.author,
+  t.permlink,
+  t.memo,
+  t.parent_author,
+  t.parent_permlink
+  FROM hive_open_tips t
+  WHERE t.author_permlink = ANY(SELECT jsonb_array_elements_text($1));
+END;
+$$
+LANGUAGE plpgsql;
