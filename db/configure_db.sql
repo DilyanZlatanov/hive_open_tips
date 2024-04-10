@@ -13,7 +13,7 @@ CREATE TABLE hive_open_tips (
    author VARCHAR(16),
    permlink TEXT,
    memo TEXT,
-   parent_author VARCHAR(50),
+   parent_author VARCHAR(16),
    parent_permlink TEXT,
    author_permlink TEXT
    );

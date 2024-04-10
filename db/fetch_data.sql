@@ -34,17 +34,16 @@ FOR row IN
        SUBSTRING(t.memo from %L) AS permlink,
        t.memo
       FROM hafsql.op_transfer t
-      WHERE t.memo LIKE %L
+      WHERE (t.memo LIKE %L OR t.memo LIKE %L)
       AND t.op_id >= 2018988205
       AND CASE 
         WHEN %L IS NULL THEN TRUE
         ELSE t.op_id > %L
       END
-      ORDER BY t.op_id ASC
-      limit 10
+      limit 1000
 ) tips
 join hafsql.comments_table c ON c.permlink = tips.permlink and c.author = tips.author',
-'app:(\w*)', '!tip @(.*)/', '!tip @.*/([a-z0-9-]*) ', '!tip%', fetched_to, fetched_to
+'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
     )
 
     )
