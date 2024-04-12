@@ -40,7 +40,8 @@ FOR row IN
         WHEN %L IS NULL THEN TRUE
         ELSE t.op_id > %L
       END
-      limit 1000
+      ORDER BY t.op_id ASC
+      limit 400
 ) tips
 join hafsql.comments_table c ON c.permlink = tips.permlink and c.author = tips.author',
 'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
