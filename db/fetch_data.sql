@@ -41,9 +41,9 @@ FOR row IN
         ELSE t.op_id > %L
       END
       ORDER BY t.op_id ASC
-      limit 400
+      LIMIT 10000
 ) tips
-join hafsql.comments_table c ON c.permlink = tips.permlink and c.author = tips.author',
+JOIN hafsql.comments c ON c.permlink = tips.permlink AND c.author = tips.author',
 'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
     )
 
