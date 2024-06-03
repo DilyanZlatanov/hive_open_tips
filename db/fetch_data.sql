@@ -4,8 +4,8 @@ CREATE OR REPLACE FUNCTION fetch_tips()
 RETURNS INT
 AS $$
 DECLARE
- fetched_to BIGINT;
- row RECORD;
+  fetched_to BIGINT;
+  row RECORD;
 BEGIN
 
 -- Check the last trx_id we have added into hive_open_tips
@@ -42,9 +42,9 @@ FOR row IN
       END
       ORDER BY t.op_id ASC
       LIMIT 10000
-) tips
-JOIN hafsql.comments c ON c.permlink = tips.permlink AND c.author = tips.author',
-'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
+      ) tips
+    JOIN hafsql.comments c ON c.permlink = tips.permlink AND c.author = tips.author',
+    'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
     )
 
     )
@@ -104,5 +104,97 @@ END LOOP;
 RETURN 1;
 
 END;
+$$
+LANGUAGE plpgsql;
+
+-- END of function fetch_tips
+
+
+
+
+-- Fetch tips for verify from Hive Engine
+CREATE OR REPLACE FUNCTION fetch_hive_engine_tips()
+RETURNS INT
+AS $$
+DECLARE
+  row RECORD;
+  is_record_match BOOLEAN;
+  last_saved_record BIGINT := MAX(hafsql_op_id) FROM unverified_transfers;
+BEGIN
+
+FOR row IN
+ SELECT *
+ FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
+ FORMAT(
+   'SELECT op_id, timestamp, required_auths, json
+    FROM hafsql.op_custom_json
+    WHERE "id" = %L
+    AND CASE 
+          WHEN %L IS NULL THEN TRUE
+          ELSE op_id > %L
+        END
+    ORDER BY op_id ASC
+    LIMIT 10000',
+    'ssc-mainnet-hive', last_saved_record, last_saved_record
+    )
+ )
+ AS (
+   op_id BIGINT,
+   timestamp TIMESTAMP,
+   required_auths VARCHAR,
+   json TEXT
+ )
+
+LOOP
+  is_record_match := FALSE;
+
+  
+  IF row.op_id NOT IN (SELECT hafsql_op_id FROM unverified_transfers)
+    AND row.json::jsonb -> 'contractPayload' ->> 'memo' LIKE '!tip @%' 
+  THEN
+    is_record_match := TRUE;
+  ELSE
+    CONTINUE;
+  END IF;
+
+
+  IF is_record_match THEN
+  
+    --Put results into our db
+    INSERT INTO unverified_transfers(
+    hafsql_op_id,
+    sender,
+    receiver,
+    amount,
+    token,
+    timestamp,
+    --platform,
+    --author,
+    --permlink,
+    memo
+    --parent_author,
+    --parent_permlink,
+    --author_permlink
+  )
+
+  VALUES (
+    row.op_id,
+    row.required_auths,
+    row.json::jsonb -> 'contractPayload' ->> 'to',
+    CAST(row.json::jsonb -> 'contractPayload' ->> 'quantity' AS FLOAT),
+    row.json::jsonb -> 'contractPayload' ->> 'symbol',
+    row.timestamp,
+    row.json::jsonb -> 'contractPayload' ->> 'memo'
+  );
+
+  END IF;
+
+END LOOP;
+
+RETURN 1;
+END;
+
+--END of function fetch_hive_engine_tips
+
 $$
 LANGUAGE plpgsql;
