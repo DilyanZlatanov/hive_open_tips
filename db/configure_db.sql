@@ -33,13 +33,22 @@ CREATE TABLE unverified_transfers (
    token VARCHAR(20),
    timestamp TIMESTAMP,
    platform VARCHAR(50),
-   author VARCHAR(16),
+   author VARCHAR(20),
    permlink TEXT,
    memo TEXT,
-   parent_author VARCHAR(16),
+   parent_author VARCHAR(20),
    parent_permlink TEXT,
    author_permlink TEXT
    );
+
+
+--This table is helping to escape fetching same records in fetch_hive_engine_tips()
+CREATE TABLE last_saved_record_table (
+    id SERIAL PRIMARY KEY,
+    last_saved_record BIGINT
+);
+INSERT INTO last_saved_record_table (last_saved_record) VALUES (0);
+
 
 
 -- Create functions for fetching the app data and for providing data API

@@ -41,7 +41,7 @@ FOR row IN
         ELSE t.op_id > %L
       END
       ORDER BY t.op_id ASC
-      LIMIT 10000
+      LIMIT 1000
       ) tips
     JOIN hafsql.comments c ON c.permlink = tips.permlink AND c.author = tips.author',
     'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
@@ -119,8 +119,13 @@ AS $$
 DECLARE
   row RECORD;
   is_record_match BOOLEAN;
-  last_saved_record BIGINT := MAX(hafsql_op_id) FROM unverified_transfers;
+  current_record BIGINT;
+  extracted_platform TEXT;
+  extracted_author TEXT;
+  extracted_permlink TEXT;
 BEGIN
+
+SELECT last_saved_record INTO current_record FROM last_saved_record_table WHERE id = 1;
 
 FOR row IN
  SELECT *
@@ -129,13 +134,10 @@ FOR row IN
    'SELECT op_id, timestamp, required_auths, json
     FROM hafsql.op_custom_json
     WHERE "id" = %L
-    AND CASE 
-          WHEN %L IS NULL THEN TRUE
-          ELSE op_id > %L
-        END
+    AND op_id >= GREATEST(184211821635309074, %L)
     ORDER BY op_id ASC
     LIMIT 10000',
-    'ssc-mainnet-hive', last_saved_record, last_saved_record
+    'ssc-mainnet-hive', current_record
     )
  )
  AS (
@@ -146,46 +148,71 @@ FOR row IN
  )
 
 LOOP
+  UPDATE last_saved_record_table SET last_saved_record = row.op_id WHERE id = 1;
   is_record_match := FALSE;
 
-  
-  IF row.op_id NOT IN (SELECT hafsql_op_id FROM unverified_transfers)
-    AND row.json::jsonb -> 'contractPayload' ->> 'memo' LIKE '!tip @%' 
-  THEN
-    is_record_match := TRUE;
-  ELSE
-    CONTINUE;
-  END IF;
+  BEGIN
+    -- Attempt to validate JSON and check for the expected structure
+    IF row.op_id NOT IN (SELECT hafsql_op_id FROM unverified_transfers)
+      AND row.json::jsonb ->> 'contractName' = 'tokens'
+      AND row.json::jsonb ->> 'contractAction' = 'transfer'
+      AND row.json::jsonb -> 'contractPayload' ? 'to'
+      AND row.json::jsonb -> 'contractPayload' ? 'quantity'
+      AND row.json::jsonb -> 'contractPayload' ->> 'memo' LIKE '!tip @%' OR row.json::jsonb -> 'contractPayload' ->> 'memo' LIKE 'Tip for @%'
+    THEN
+      is_record_match := TRUE;
+    ELSE
+      CONTINUE;
+    END IF;
+  EXCEPTION 
+      WHEN OTHERS THEN CONTINUE;
+  END;
 
 
   IF is_record_match THEN
-  
-    --Put results into our db
-    INSERT INTO unverified_transfers(
-    hafsql_op_id,
-    sender,
-    receiver,
-    amount,
-    token,
-    timestamp,
-    --platform,
-    --author,
-    --permlink,
-    memo
-    --parent_author,
-    --parent_permlink,
-    --author_permlink
-  )
+    BEGIN
 
-  VALUES (
-    row.op_id,
-    row.required_auths,
-    row.json::jsonb -> 'contractPayload' ->> 'to',
-    CAST(row.json::jsonb -> 'contractPayload' ->> 'quantity' AS FLOAT),
-    row.json::jsonb -> 'contractPayload' ->> 'symbol',
-    row.timestamp,
-    row.json::jsonb -> 'contractPayload' ->> 'memo'
-  );
+      SELECT 
+        regexp_matches(row.json::jsonb -> 'contractPayload' ->> 'memo', 'app:(\w*)'),
+        regexp_matches(row.json::jsonb -> 'contractPayload' ->> 'memo', '(?:!tip|Tip for) @(.*)/'),
+        regexp_matches(row.json::jsonb -> 'contractPayload' ->> 'memo', '(?:!tip|Tip for) @.*/([a-z0-9-]*)')
+      INTO
+        extracted_platform,
+        extracted_author,
+        extracted_permlink;
+
+      --Put results into our db
+      INSERT INTO unverified_transfers(
+      hafsql_op_id,
+      sender,
+      receiver,
+      amount,
+      token,
+      timestamp,
+      platform,
+      author,
+      permlink,
+      memo,
+      --parent_author,
+      --parent_permlink,
+      author_permlink
+      )
+
+      VALUES (
+        row.op_id,
+        row.required_auths,
+        row.json::jsonb -> 'contractPayload' ->> 'to',
+        CAST(row.json::jsonb -> 'contractPayload' ->> 'quantity' AS FLOAT),
+        row.json::jsonb -> 'contractPayload' ->> 'symbol',
+        row.timestamp,
+        extracted_platform,
+        extracted_author,
+        extracted_permlink,
+        row.json::jsonb -> 'contractPayload' ->> 'memo',
+        CONCAT(extracted_author,'/',extracted_permlink)
+      );
+    
+    END;
 
   END IF;
 
@@ -194,7 +221,9 @@ END LOOP;
 RETURN 1;
 END;
 
---END of function fetch_hive_engine_tips
+
 
 $$
 LANGUAGE plpgsql;
+
+--END of function fetch_hive_engine_tips
