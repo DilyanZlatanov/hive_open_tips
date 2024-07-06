@@ -47,7 +47,7 @@ CREATE TABLE last_saved_record_table (
     id SERIAL PRIMARY KEY,
     last_saved_record BIGINT
 );
-INSERT INTO last_saved_record_table (last_saved_record) VALUES (0);
+INSERT INTO last_saved_record_table (last_saved_record) VALUES (184211821635309073);
 
 
 
