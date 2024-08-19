@@ -29,6 +29,10 @@ echo "Adding scheduled jobs..."
 sudo -u postgres psql -d $db_name -f /usr/src/app/db/scheduled_jobs.sql &
 sleep 3
 
-echo "Starting postgREST..."
+echo "Starting postgREST..." 
 # Start the postgREST server from the postgrest_auth user
-sudo -u postgrest_auth postgrest postgrest.conf
+sudo -u postgrest_auth postgrest postgrest.conf &
+sleep 3
+
+echo "Starting the Node.js app..."
+node src/main.js

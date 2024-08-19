@@ -3,7 +3,7 @@
 \c hive_open_tips;
 
 --main table
-CREATE TABLE hive_open_tips (
+CREATE TABLE IF NOT EXISTS hive_open_tips (
    hafsql_op_id BIGINT PRIMARY KEY,
    sender VARCHAR(20),
    receiver VARCHAR(20),
@@ -19,13 +19,13 @@ CREATE TABLE hive_open_tips (
    author_permlink TEXT
    );
 
-CREATE INDEX idx_sender ON hive_open_tips USING HASH (sender);
-CREATE INDEX idx_receiver ON hive_open_tips USING HASH (receiver);
-CREATE INDEX idx_memo ON hive_open_tips USING HASH (memo);
+CREATE INDEX IF NOT EXISTS idx_sender ON hive_open_tips USING HASH (sender);
+CREATE INDEX IF NOT EXISTS idx_receiver ON hive_open_tips USING HASH (receiver);
+CREATE INDEX IF NOT EXISTS idx_memo ON hive_open_tips USING HASH (memo);
 
 
 --unverified transfers from hafsql.op_custom_json
-CREATE TABLE unverified_transfers (
+CREATE TABLE IF NOT EXISTS unverified_transfers (
    hafsql_op_id BIGINT PRIMARY KEY,
    sender VARCHAR(20),
    receiver VARCHAR(20),
@@ -38,16 +38,17 @@ CREATE TABLE unverified_transfers (
    memo TEXT,
    parent_author VARCHAR(20),
    parent_permlink TEXT,
-   author_permlink TEXT
+   author_permlink TEXT,
+   trx_id TEXT
    );
 
 
 --This table is helping to escape fetching same records in fetch_hive_engine_tips()
-CREATE TABLE last_saved_record_table (
+CREATE TABLE IF NOT EXISTS last_saved_record_table (
     id SERIAL PRIMARY KEY,
     last_saved_record BIGINT
 );
-INSERT INTO last_saved_record_table (last_saved_record) VALUES (184211821635309073);
+INSERT INTO last_saved_record_table (last_saved_record) VALUES (369315437395054860);
 
 
 

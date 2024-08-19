@@ -133,9 +133,10 @@ BEGIN
 FOR row IN
  SELECT *
  FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
- FORMAT('SELECT tips.*, c.parent_author, c.parent_permlink
+ FORMAT('SELECT tips.*, c.parent_author, c.parent_permlink, hafsql.get_trx_id(tips.op_id) AS trx_id
  FROM(
     SELECT 
+      MAX(t.op_id),
       t.op_id,
       t.timestamp,
       t.required_auths,
@@ -145,10 +146,14 @@ FOR row IN
     FROM hafsql.op_custom_json t
     WHERE t.id = %L
     AND t.op_id > %L
+    GROUP BY t.op_id, t.timestamp, t.required_auths, t.json
     ORDER BY t.op_id ASC
     LIMIT 100000
     ) tips
-    JOIN hafsql.comments c ON c.permlink = SUBSTRING(tips.permlink, %L) AND c.author = SUBSTRING(tips.author, %L)',
+    JOIN hafsql.comments c ON c.permlink = SUBSTRING(tips.permlink, %L) AND c.author = SUBSTRING(tips.author, %L)
+    JOIN hafsql.op_comment opc
+    ON  c.author = opc.author
+    AND c.permlink = opc.permlink',
     'ssc-mainnet-hive',
     current_record,
     '(?:!tip|Tip for) @.*/([a-z0-9-]*)',
@@ -156,6 +161,7 @@ FOR row IN
     )
  )
  AS tips(
+      max_record_in_hafsql_op_custom_json BIGINT,
       op_id BIGINT,
       timestamp TIMESTAMP,
       required_auths VARCHAR,
@@ -163,7 +169,8 @@ FOR row IN
       author VARCHAR,
       permlink TEXT,
       parent_author VARCHAR, 
-      parent_permlink TEXT
+      parent_permlink TEXT,
+      trx_id TEXT
     )
  
 LOOP
@@ -225,7 +232,8 @@ LOOP
       memo,
       parent_author,
       parent_permlink,
-      author_permlink
+      author_permlink,
+      trx_id
       )
 
       VALUES (
@@ -241,7 +249,8 @@ LOOP
         row.json::jsonb -> 'contractPayload' ->> 'memo',
         row.parent_author,
         row.parent_permlink,
-        CONCAT(extracted_author,'/',extracted_permlink)
+        CONCAT(extracted_author,'/',extracted_permlink),
+        row.trx_id
       );
     
     END;
@@ -250,12 +259,20 @@ LOOP
 
 END LOOP;
 
---Update last_saved_record with +10000 when query is not returning records
+--Update last_saved_record with +100000 when query is not returning records
 IF iteration_count = 0
 THEN UPDATE last_saved_record_table 
-     SET last_saved_record = (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) + 10000
+     SET last_saved_record = (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) + 100000
      WHERE id = 1;
 END IF;
+
+
+IF (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) > row.max_record_in_hafsql_op_custom_json
+THEN UPDATE last_saved_record_table 
+     SET last_saved_record = row.max_record_in_hafsql_op_custom_json
+     WHERE id = 1;
+END IF;
+  
 
 RETURN 1;
 END;

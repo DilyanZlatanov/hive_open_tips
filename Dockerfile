@@ -35,14 +35,27 @@ RUN rm postgrest-v10.1.2-linux-static-x64.tar.xz
 RUN wget https://github.com/cybertec-postgresql/pg_timetable/releases/download/v5.6.0/pg_timetable_Linux_x86_64.deb
 RUN sudo apt-get install ./pg_timetable_Linux_x86_64.deb
 
-# Copy the application source into the container and ensure entrypoint is executable
-COPY . .
-RUN chmod +x docker_entrypoint.sh
-
 # Create OS user to be used for postgREST authentication using local UNIX socket and the Postgres peer auth method
 RUN useradd -ms /bin/bash postgrest_auth
 # Create similar user to be used for pg_timetable authentication
 RUN useradd -ms /bin/bash scheduler
+
+# Install Node.js from the NodeSource repository
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - &&\
+sudo apt-get install -y nodejs
+
+# Change container directory
+WORKDIR /usr/src/app
+
+# Copy package management files into the container
+COPY package.json . 
+
+# Install dependencies
+RUN npm install
+
+# Copy the application source into the container and ensure entrypoint is executable
+COPY . .
+RUN chmod +x docker_entrypoint.sh
 
 # Run the application
 ENTRYPOINT [ "/usr/src/app/docker_entrypoint.sh" ]
