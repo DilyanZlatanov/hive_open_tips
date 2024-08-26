@@ -34,7 +34,7 @@ try {
   console.error('Unable to connect to the database:', error)
 }
 
-// This is for preventing docker container to stop.
+// Run query for validation.
 cron.schedule('* * * * *', async () => {
   console.log("Starting validation of HiveEngine trasactions")
     
@@ -48,11 +48,68 @@ cron.schedule('* * * * *', async () => {
 
   for(const result of results) {
     //Validate the transfer
-    console.log(result.trx_id)
     var trx_info = await hiveEngineApi.getTransaction(
       result.trx_id
-    )
-    console.log(trx_info)
+    );
+    // Save validated records from unverified_transfers table to hive_open_tips table
+    if (result.sender == trx_info.result.sender
+        && trx_info.result.contract == 'tokens'
+        && trx_info.result.action == 'transfer') {
+          await sequelize.query(
+            `INSERT INTO hive_open_tips (
+            hafsql_op_id,
+            sender,
+            receiver,
+            amount,
+            token,
+            timestamp,
+            platform,
+            author,
+            permlink,
+            memo,
+            parent_author,
+            parent_permlink,
+            author_permlink
+          )
+          VALUES(
+            :result_hafsql_op_id,
+            :result_sender,
+            :result_receiver,
+            :result_amount,
+            :result_token,
+            :result_timestamp,
+            :result_platform,
+            :result_author,
+            :result_permlink,
+            :result_memo,
+            :result_parent_author,
+            :result_parent_permlink,
+            :result_author_permlink
+          )`,
+            {replacements:{
+              result_hafsql_op_id: result.hafsql_op_id,
+              result_sender: result.sender,
+              result_receiver: result.receiver,
+              result_amount: result.amount,
+              result_token: result.token,
+              result_timestamp: result.timestamp,
+              result_platform: result.platform,
+              result_author: result.author,
+              result_permlink: result.permlink,
+              result_memo: result.memo,
+              result_parent_author: result.parent_author,
+              result_parent_permlink: result.parent_permlink,
+              result_author_permlink: result.author_permlink}}
+          );
+        }
+        
+        //Delete record from unverified_transfers after check for validation
+        await sequelize.query(
+          `DELETE FROM unverified_transfers
+           WHERE hafsql_op_id = :result_op_id`,
+          {replacements:{result_op_id: result.hafsql_op_id}}
+        );
+
   }
 
   });

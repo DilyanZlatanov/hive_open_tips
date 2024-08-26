@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS last_saved_record_table (
     id SERIAL PRIMARY KEY,
     last_saved_record BIGINT
 );
-INSERT INTO last_saved_record_table (last_saved_record) VALUES (369315437395054860);
 
 
 

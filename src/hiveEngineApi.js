@@ -39,7 +39,7 @@ export class HiveEngineApi {
     return pRetry(
       () =>
         pTimeout(
-          axios.post(this.currentEndpoint, {
+          axios.post('https://engine.rishipanthee.com/blockchain', {
             id: this.rpcCallId++,
             jsonrpc: '2.0',
             method: 'getTransactionInfo',

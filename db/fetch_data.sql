@@ -126,6 +126,13 @@ DECLARE
   iteration_count INT := 0;
 BEGIN
 
+-- Set start point for fetching
+IF (SELECT COUNT(*) FROM last_saved_record_table) < 1 THEN
+INSERT INTO last_saved_record_table (last_saved_record) VALUES (369315437395054860);
+END IF;
+
+  RAISE NOTICE 'fetching hive engine tips...';
+
   SELECT last_saved_record INTO current_record 
   FROM last_saved_record_table 
   WHERE id = 1;
@@ -148,7 +155,7 @@ FOR row IN
     AND t.op_id > %L
     GROUP BY t.op_id, t.timestamp, t.required_auths, t.json
     ORDER BY t.op_id ASC
-    LIMIT 100000
+    LIMIT 1000000
     ) tips
     JOIN hafsql.comments c ON c.permlink = SUBSTRING(tips.permlink, %L) AND c.author = SUBSTRING(tips.author, %L)
     JOIN hafsql.op_comment opc
@@ -183,7 +190,6 @@ LOOP
 
   is_record_match := FALSE;
 
-  IF NOT is_record_match THEN
     BEGIN
       -- Attempt to validate JSON and check for the expected structure
       IF row.op_id NOT IN (SELECT hafsql_op_id FROM unverified_transfers)
@@ -202,7 +208,6 @@ LOOP
         WHEN OTHERS 
         THEN CONTINUE;
     END;
-  END IF;
 
 
   IF is_record_match THEN
@@ -262,11 +267,11 @@ END LOOP;
 --Update last_saved_record with +100000 when query is not returning records
 IF iteration_count = 0
 THEN UPDATE last_saved_record_table 
-     SET last_saved_record = (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) + 100000
+     SET last_saved_record = (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) + 1000000
      WHERE id = 1;
 END IF;
 
-
+-- Avoid hafsql.op_id to exceed the MAX record from hafsql.op_custom_json
 IF (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) > row.max_record_in_hafsql_op_custom_json
 THEN UPDATE last_saved_record_table 
      SET last_saved_record = row.max_record_in_hafsql_op_custom_json
