@@ -4,12 +4,14 @@ CREATE OR REPLACE FUNCTION fetch_tips()
 RETURNS INT
 AS $$
 DECLARE
-  fetched_to BIGINT;
+  start_point BIGINT;
   row RECORD;
 BEGIN
 
--- Check the last trx_id we have added into hive_open_tips
-SELECT MAX(hive_open_tips.hafsql_op_id) INTO fetched_to FROM hive_open_tips;
+-- Update the start point for the next query
+SELECT dynamic_start_point INTO start_point 
+FROM dynamic_start_point_table 
+WHERE id = 1;
 
 -- Get new tips and loop over them
 RAISE NOTICE 'fetching tips data...';
@@ -28,6 +30,7 @@ FOR row IN
        t."from", 
        t."to",
        t.amount,
+       t.symbol,
        t.timestamp,
        SUBSTRING(t.memo from %L) AS platform,
        SUBSTRING(t.memo from %L) AS author,
@@ -35,16 +38,12 @@ FOR row IN
        t.memo
       FROM hafsql.op_transfer t
       WHERE (t.memo LIKE %L OR t.memo LIKE %L)
-      AND t.op_id >= 2018988205
-      AND CASE 
-        WHEN %L IS NULL THEN TRUE
-        ELSE t.op_id > %L
-      END
+      AND t.op_id > %L
       ORDER BY t.op_id ASC
       LIMIT 20000
       ) tips
-    JOIN hafsql.comments c ON c.permlink = tips.permlink AND c.author = tips.author',
-    'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', fetched_to, fetched_to
+    JOIN hafsql.comments_table c ON c.permlink = tips.permlink AND c.author = tips.author',
+    'app:(\w*)', '(?:!tip|Tip for) @(.*)/', '(?:!tip|Tip for) @.*/([a-z0-9-]*)', '!tip%', 'Tip for @%', start_point
     )
 
     )
@@ -52,7 +51,8 @@ FOR row IN
             op_id BIGINT, 
             "from" VARCHAR, 
             "to" VARCHAR, 
-            amount TEXT, 
+            amount FLOAT,
+            symbol VARCHAR, 
             timestamp TIMESTAMP, 
             platform TEXT, 
             author VARCHAR, 
@@ -64,6 +64,11 @@ FOR row IN
     
 
   LOOP
+  -- Update dynamic_start_point
+  UPDATE dynamic_start_point_table 
+  SET dynamic_start_point = row.op_id 
+  WHERE id = 1;
+
   -- Put row results into our db  
   INSERT INTO hive_open_tips(
     hafsql_op_id,
@@ -84,12 +89,8 @@ FOR row IN
     row.op_id,
     row."from",
     row."to",
-    CAST(row.amount::jsonb->>'amount' AS FLOAT),
-    CASE
-      WHEN row.amount::jsonb->>'nai' = '@@000000021' THEN 'HIVE'::TEXT
-      WHEN row.amount::jsonb->>'nai' = '@@000000013' THEN 'HBD'::TEXT
-      ELSE row.amount::jsonb->>'nai'::TEXT
-    END,
+    row.amount,
+    row.symbol,
     row.timestamp,
     row.platform,
     row.author,
@@ -155,7 +156,7 @@ FOR row IN
     AND t.op_id > %L
     GROUP BY t.op_id, t.timestamp, t.required_auths, t.json
     ORDER BY t.op_id ASC
-    LIMIT 1000000
+    LIMIT 100000
     ) tips
     JOIN hafsql.comments c ON c.permlink = SUBSTRING(tips.permlink, %L) AND c.author = SUBSTRING(tips.author, %L)
     JOIN hafsql.op_comment opc
