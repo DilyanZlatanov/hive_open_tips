@@ -4,7 +4,7 @@
 -- This function provides a list for tips for a specific Hive post.
 CREATE OR REPLACE FUNCTION tips_list_for_post(v_author VARCHAR, v_permlink TEXT)
 RETURNS TABLE (
-  op_id BIGINT,
+  op_id VARCHAR(18),
   "timestamp" TIMESTAMP,
   amount FLOAT,
   token VARCHAR(20),
@@ -20,7 +20,7 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-    t.hafsql_op_id,
+    CAST(t.hafsql_op_id AS VARCHAR),
     t.timestamp,
     t.amount,
     t.token,
@@ -43,7 +43,7 @@ LANGUAGE plpgsql;
 -- This function provides list for tips for every comment on a specific Hive post.
 CREATE OR REPLACE FUNCTION tips_list_for_post_comments(v_author VARCHAR, v_permlink TEXT)
 RETURNS TABLE (
-  op_id BIGINT,
+  op_id VARCHAR(18),
   "timestamp" TIMESTAMP,
   amount FLOAT,
   token VARCHAR(20),
@@ -59,7 +59,7 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT
-    t.hafsql_op_id,
+    CAST(t.hafsql_op_id AS VARCHAR),
     t.timestamp,
     t.amount,
     t.token,
@@ -82,7 +82,7 @@ LANGUAGE plpgsql;
 -- This function accepts POST request. You can pass JSONB array as parameter based on author_permlink column from hive_open_tips table.
 CREATE OR REPLACE FUNCTION tips_for_multi_posts_selection(posts JSONB)
 RETURNS TABLE(
-  op_id BIGINT,
+  op_id VARCHAR(18),
   "timestamp" TIMESTAMP,
   amount FLOAT,
   token VARCHAR(20),
@@ -98,7 +98,7 @@ AS $$
 BEGIN
   RETURN QUERY 
   SELECT
-  t.hafsql_op_id,
+  CAST(t.hafsql_op_id AS VARCHAR),
   t.timestamp,
   t.amount,
   t.token,
