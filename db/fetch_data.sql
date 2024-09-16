@@ -156,7 +156,7 @@ FOR row IN
     AND t.op_id > %L
     GROUP BY t.op_id, t.timestamp, t.required_auths, t.json
     ORDER BY t.op_id ASC
-    LIMIT 100000
+    LIMIT 1000000
     ) tips
     JOIN hafsql.comments c ON c.permlink = SUBSTRING(tips.permlink, %L) AND c.author = SUBSTRING(tips.author, %L)
     JOIN hafsql.op_comment opc
@@ -265,7 +265,7 @@ LOOP
 
 END LOOP;
 
---Update last_saved_record with +100000 when query is not returning records
+--Update last_saved_record with +1000000 when query is not returning records
 IF iteration_count = 0
 THEN UPDATE last_saved_record_table 
      SET last_saved_record = (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) + 1000000
