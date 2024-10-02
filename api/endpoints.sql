@@ -31,9 +31,8 @@ BEGIN
     t.parent_permlink,
     t.memo,
     t.platform
-    FROM hive_open_tips t
-    WHERE t.parent_author = '' 
-    AND t.author_permlink = $1 || '/' || $2;
+    FROM hive_open_tips t 
+    WHERE t.author_permlink = $1 || '/' || $2;
 END;
 $$
 LANGUAGE plpgsql;
