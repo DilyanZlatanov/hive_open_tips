@@ -23,10 +23,9 @@ RAISE NOTICE 'fetching tips data...';
 FOR row IN
   SELECT *
     FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
-    FORMAT('select tips.*, c.parent_author,
-       c.parent_permlink
+    FORMAT('SELECT tips.*, c.root_author AS parent_author, c.root_permlink AS parent_permlink
     FROM (
-    SELECT t.op_id, 
+    SELECT t.op_id,
        t."from", 
        t."to",
        t.amount,
@@ -141,7 +140,7 @@ END IF;
 FOR row IN
  SELECT *
  FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
- FORMAT('SELECT tips.*, c.parent_author, c.parent_permlink, hafsql.get_trx_id(tips.op_id) AS trx_id
+ FORMAT('SELECT tips.*, c.root_author AS parent_author, c.root_permlink AS parent_permlink, hafsql.get_trx_id(tips.op_id) AS trx_id
  FROM(
     SELECT 
       MAX(t.op_id),
