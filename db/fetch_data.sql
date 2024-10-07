@@ -119,22 +119,21 @@ AS $$
 DECLARE
   row RECORD;
   is_record_match BOOLEAN;
-  current_record BIGINT;
+  current_block_num BIGINT;
   extracted_platform TEXT;
   extracted_author TEXT;
   extracted_permlink TEXT;
-  iteration_count INT := 0;
 BEGIN
 
 -- Set start point for fetching
-IF (SELECT COUNT(*) FROM last_saved_record_table) < 1 THEN
-INSERT INTO last_saved_record_table (last_saved_record) VALUES (369315437395054860);
+IF (SELECT COUNT(*) FROM last_checked_block_num_table) < 1 THEN
+INSERT INTO last_checked_block_num_table (last_checked_block_num) VALUES (2022313);
 END IF;
 
   RAISE NOTICE 'fetching hive engine tips...';
 
-  SELECT last_saved_record INTO current_record 
-  FROM last_saved_record_table 
+  SELECT last_checked_block_num INTO current_block_num
+  FROM last_checked_block_num_table 
   WHERE id = 1;
 
 FOR row IN
@@ -142,50 +141,48 @@ FOR row IN
  FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
  FORMAT('SELECT tips.*, c.root_author AS parent_author, c.root_permlink AS parent_permlink, hafsql.get_trx_id(tips.op_id) AS trx_id
  FROM(
-    SELECT 
-      MAX(t.op_id),
+    SELECT
       t.op_id,
       t.timestamp,
       t.required_auths,
       t.json,
       t.json AS author,
-      t.json AS permlink
+      t.json AS permlink,
+      t.block_num
     FROM hafsql.op_custom_json t
     WHERE t.id = %L
-    AND t.op_id > %L
-    GROUP BY t.op_id, t.timestamp, t.required_auths, t.json
+    AND t.block_num >= %L
+    GROUP BY t.op_id, t.timestamp, t.required_auths, t.json, t.block_num
     ORDER BY t.op_id ASC
-    LIMIT 1000000
+    LIMIT 200000
     ) tips
     JOIN hafsql.comments c ON c.permlink = SUBSTRING(tips.permlink, %L) AND c.author = SUBSTRING(tips.author, %L)
     JOIN hafsql.op_comment opc
     ON  c.author = opc.author
     AND c.permlink = opc.permlink',
     'ssc-mainnet-hive',
-    current_record,
+    current_block_num,
     '(?:!tip|Tip for) @.*/([a-z0-9-]*)',
     '(?:!tip|Tip for) @(.*)/'
     )
  )
  AS tips(
-      max_record_in_hafsql_op_custom_json BIGINT,
       op_id BIGINT,
       timestamp TIMESTAMP,
       required_auths VARCHAR,
       json TEXT,
       author VARCHAR,
       permlink TEXT,
+      block_num INT,
       parent_author VARCHAR, 
       parent_permlink TEXT,
       trx_id TEXT
     )
  
 LOOP
-  
-  iteration_count = iteration_count + 1;
 
-  UPDATE last_saved_record_table 
-  SET last_saved_record = row.op_id 
+  UPDATE last_checked_block_num_table 
+  SET last_checked_block_num = row.block_num
   WHERE id = 1;
 
   is_record_match := FALSE;
@@ -263,21 +260,6 @@ LOOP
   END IF;
 
 END LOOP;
-
---Update last_saved_record with +1000000 when query is not returning records
-IF iteration_count = 0
-THEN UPDATE last_saved_record_table 
-     SET last_saved_record = (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) + 1000000
-     WHERE id = 1;
-END IF;
-
--- Avoid hafsql.op_id to exceed the MAX record from hafsql.op_custom_json
-IF (SELECT last_saved_record FROM last_saved_record_table WHERE id = 1) > row.max_record_in_hafsql_op_custom_json
-THEN UPDATE last_saved_record_table 
-     SET last_saved_record = row.max_record_in_hafsql_op_custom_json
-     WHERE id = 1;
-END IF;
-  
 
 RETURN 1;
 END;
