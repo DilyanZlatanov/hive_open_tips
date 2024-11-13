@@ -36,8 +36,8 @@ try {
 
 // Run query for validation.
 cron.schedule('* * * * *', async () => {
-  console.log("Starting validation of HiveEngine trasactions")
-    
+  console.log("Starting validation of HiveEngine transactions");
+
   var results = await sequelize.query(
     `SELECT *
      FROM unverified_transfers
@@ -46,17 +46,19 @@ cron.schedule('* * * * *', async () => {
     { type: QueryTypes.SELECT }
   );
 
-  for(const result of results) {
-    //Validate the transfer
-    var trx_info = await hiveEngineApi.getTransaction(
-      result.trx_id
-    );
+  for (const result of results) {
+
+    // Validate the transfer
+    var trx_info = await hiveEngineApi.getTransaction(result.trx_id);
+
     // Save validated records from unverified_transfers table to hive_open_tips table
-    if (result.sender == trx_info.result.sender
+    if (trx_info && trx_info.result) {
+      if (result.sender == trx_info.result.sender
         && trx_info.result.contract == 'tokens'
         && trx_info.result.action == 'transfer') {
-          await sequelize.query(
-            `INSERT INTO hive_open_tips (
+
+        await sequelize.query(
+          `INSERT INTO hive_open_tips (
             hafsql_op_id,
             sender,
             receiver,
@@ -71,7 +73,7 @@ cron.schedule('* * * * *', async () => {
             parent_permlink,
             author_permlink
           )
-          VALUES(
+          VALUES (
             :result_hafsql_op_id,
             :result_sender,
             :result_receiver,
@@ -86,7 +88,8 @@ cron.schedule('* * * * *', async () => {
             :result_parent_permlink,
             :result_author_permlink
           )`,
-            {replacements:{
+          {
+            replacements: {
               result_hafsql_op_id: result.hafsql_op_id,
               result_sender: result.sender,
               result_receiver: result.receiver,
@@ -99,17 +102,20 @@ cron.schedule('* * * * *', async () => {
               result_memo: result.memo,
               result_parent_author: result.parent_author,
               result_parent_permlink: result.parent_permlink,
-              result_author_permlink: result.author_permlink}}
-          );
-        }
-        
-        //Delete record from unverified_transfers after check for validation
-        await sequelize.query(
-          `DELETE FROM unverified_transfers
-           WHERE hafsql_op_id = :result_op_id`,
-          {replacements:{result_op_id: result.hafsql_op_id}}
+              result_author_permlink: result.author_permlink
+            }
+          }
         );
+        console.log(`Record with hafsql_op_id ${result.hafsql_op_id} successfully inserted into hive_open_tips table`);
+      }
+    }
 
+    // Delete record from unverified_transfers after validation 
+    await sequelize.query(
+      `DELETE FROM unverified_transfers
+        WHERE hafsql_op_id = :result_op_id`,
+      { replacements: { result_op_id: result.hafsql_op_id } }
+    );
+    console.log(`Record with hafsql_op_id ${result.hafsql_op_id} deleted successfully from unverified_transfers table`);
   }
-
-  });
+});

@@ -26,7 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_memo ON hive_open_tips USING HASH (memo);
 
 --unverified transfers from hafsql.op_custom_json
 CREATE TABLE IF NOT EXISTS unverified_transfers (
-   hafsql_op_id BIGINT PRIMARY KEY,
+   id SERIAL PRIMARY KEY,
+   hafsql_op_id BIGINT,
    sender VARCHAR(20),
    receiver VARCHAR(20),
    amount FLOAT,
@@ -55,7 +56,8 @@ INSERT INTO dynamic_start_point_table (dynamic_start_point) VALUES (183067199966
 --This table is helping to escape fetching same records in fetch_hive_engine_tips()
 CREATE TABLE IF NOT EXISTS last_checked_block_num_table (
     id SERIAL PRIMARY KEY,
-    last_checked_block_num BIGINT
+    lower_block_num_bound INT,
+    upper_block_num_bound INT
 );
 
 

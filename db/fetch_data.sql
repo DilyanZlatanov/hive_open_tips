@@ -119,22 +119,26 @@ AS $$
 DECLARE
   row RECORD;
   is_record_match BOOLEAN;
-  current_block_num BIGINT;
   extracted_platform TEXT;
   extracted_author TEXT;
   extracted_permlink TEXT;
+  lower_bound INT;
+  upper_bound INT;
+  increment INT := 10000;
 BEGIN
 
--- Set start point for fetching
+-- Set bounds for the first fetch
 IF (SELECT COUNT(*) FROM last_checked_block_num_table) < 1 THEN
-INSERT INTO last_checked_block_num_table (last_checked_block_num) VALUES (2022313);
+INSERT INTO last_checked_block_num_table (lower_block_num_bound, upper_block_num_bound) VALUES (42890156, 42900156);
 END IF;
 
   RAISE NOTICE 'fetching hive engine tips...';
-
-  SELECT last_checked_block_num INTO current_block_num
+  
+  -- Set bounds for current fetch
+  SELECT lower_block_num_bound, upper_block_num_bound INTO lower_bound, upper_bound
   FROM last_checked_block_num_table 
   WHERE id = 1;
+
 
 FOR row IN
  SELECT *
@@ -148,10 +152,12 @@ FOR row IN
       t.json,
       t.json AS author,
       t.json AS permlink,
-      t.block_num
+      t.block_num,
+      MAX(t.block_num)
     FROM hafsql.op_custom_json t
     WHERE t.id = %L
-    AND t.block_num >= %L
+    AND t.block_num > %L
+    AND t.block_num < %L
     GROUP BY t.op_id, t.timestamp, t.required_auths, t.json, t.block_num
     ORDER BY t.op_id ASC
     LIMIT 200000
@@ -161,7 +167,8 @@ FOR row IN
     ON  c.author = opc.author
     AND c.permlink = opc.permlink',
     'ssc-mainnet-hive',
-    current_block_num,
+    lower_bound,
+    upper_bound,
     '(?:!tip|Tip for) @.*/([a-z0-9-]*)',
     '(?:!tip|Tip for) @(.*)/'
     )
@@ -174,6 +181,7 @@ FOR row IN
       author VARCHAR,
       permlink TEXT,
       block_num INT,
+      max_block_num INT,
       parent_author VARCHAR, 
       parent_permlink TEXT,
       trx_id TEXT
@@ -181,10 +189,13 @@ FOR row IN
  
 LOOP
 
+  RAISE NOTICE 'current block number is: %', row.block_num;
+  -- Update bounds for next fetch
   UPDATE last_checked_block_num_table 
-  SET last_checked_block_num = row.block_num
+  SET lower_block_num_bound = row.block_num,
+      upper_block_num_bound = (row.block_num + increment)
   WHERE id = 1;
-
+  
   is_record_match := FALSE;
 
     BEGIN
@@ -260,6 +271,23 @@ LOOP
   END IF;
 
 END LOOP;
+
+-- If no records were fetched, increase both bounds by the increment value
+IF NOT FOUND THEN
+  UPDATE last_checked_block_num_table
+  SET lower_block_num_bound = lower_block_num_bound + increment,
+      upper_block_num_bound = upper_block_num_bound + increment
+  WHERE id = 1;
+  RAISE NOTICE 'No records found, advancing bounds to % - %', lower_bound + increment, upper_bound + increment;
+END IF;
+
+-- Avoid fetching to exceed the database
+IF lower_bound > row.max_block_num THEN
+  UPDATE last_checked_block_num_table
+  SET lower_block_num_bound = row.max_block_num - 1,
+      upper_block_num_bound = lower_block_num_bound + (increment - 1)
+  WHERE id = 1;
+END IF;
 
 RETURN 1;
 END;
