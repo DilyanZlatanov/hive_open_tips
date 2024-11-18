@@ -122,14 +122,26 @@ DECLARE
   extracted_platform TEXT;
   extracted_author TEXT;
   extracted_permlink TEXT;
+  max_block_num INT;
   lower_bound INT;
   upper_bound INT;
   increment INT := 10000;
 BEGIN
 
+-- Fetch the maximum block_num to trace when database ends
+  SELECT block_num
+  INTO max_block_num
+  FROM dblink('postgresql://hafsql_public:hafsql_public@hafsql.mahdiyari.info:5432/haf_block_log',
+  'SELECT block_num 
+   FROM hafsql.op_custom_json
+   ORDER BY block_num DESC
+   LIMIT 1'
+)
+AS result(block_num INT);
+
 -- Set bounds for the first fetch
 IF (SELECT COUNT(*) FROM last_checked_block_num_table) < 1 THEN
-INSERT INTO last_checked_block_num_table (lower_block_num_bound, upper_block_num_bound) VALUES (42890156, 42900156);
+INSERT INTO last_checked_block_num_table (lower_block_num_bound, upper_block_num_bound) VALUES (90789995, 90799995);
 END IF;
 
   RAISE NOTICE 'fetching hive engine tips...';
@@ -152,8 +164,7 @@ FOR row IN
       t.json,
       t.json AS author,
       t.json AS permlink,
-      t.block_num,
-      MAX(t.block_num)
+      t.block_num
     FROM hafsql.op_custom_json t
     WHERE t.id = %L
     AND t.block_num > %L
@@ -181,7 +192,6 @@ FOR row IN
       author VARCHAR,
       permlink TEXT,
       block_num INT,
-      max_block_num INT,
       parent_author VARCHAR, 
       parent_permlink TEXT,
       trx_id TEXT
@@ -281,12 +291,13 @@ IF NOT FOUND THEN
   RAISE NOTICE 'No records found, advancing bounds to % - %', lower_bound + increment, upper_bound + increment;
 END IF;
 
--- Avoid fetching to exceed the database
-IF lower_bound > row.max_block_num THEN
+-- Avoid exceed the database
+IF lower_bound > max_block_num THEN
   UPDATE last_checked_block_num_table
-  SET lower_block_num_bound = row.max_block_num - 1,
-      upper_block_num_bound = lower_block_num_bound + (increment - 1)
+  SET lower_block_num_bound = max_block_num - 1,
+      upper_block_num_bound = max_block_num + (increment - 1)
   WHERE id = 1;
+  RAISE NOTICE 'Avoid exceed database, advancing bounds to % - %', max_block_num - 1, max_block_num + (increment - 1);
 END IF;
 
 RETURN 1;
