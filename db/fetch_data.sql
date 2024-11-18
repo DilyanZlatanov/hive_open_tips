@@ -141,7 +141,7 @@ AS result(block_num INT);
 
 -- Set bounds for the first fetch
 IF (SELECT COUNT(*) FROM last_checked_block_num_table) < 1 THEN
-INSERT INTO last_checked_block_num_table (lower_block_num_bound, upper_block_num_bound) VALUES (90789995, 90799995);
+INSERT INTO last_checked_block_num_table (lower_block_num_bound, upper_block_num_bound) VALUES (42890156, 42900156);
 END IF;
 
   RAISE NOTICE 'fetching hive engine tips...';
